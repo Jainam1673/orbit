@@ -1,0 +1,6 @@
+strategy: "adaptive"
+frontier_target_success_rate: 0.6
+learning_rate: 0.1
+min_difficulty: 0.1
+max_difficulty: 1.0
+window_size: 20

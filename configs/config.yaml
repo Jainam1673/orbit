@@ -1,0 +1,14 @@
+defaults:
+  - model: default
+  - agent: default
+  - environment: default
+  - algorithm: default
+  - curriculum: default
+  - _self_
+
+name: "phase0_foundation"
+seed: 42
+deterministic: true
+output_dir: "experiments/outputs"
+wandb_project: "orbit"
+wandb_enabled: false

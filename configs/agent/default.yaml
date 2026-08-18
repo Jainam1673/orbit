@@ -1,0 +1,3 @@
+agent_id: "orbit_agent"
+max_steps: 10
+system_prompt: "You are an expert reasoning agent. Solve tasks step by step."

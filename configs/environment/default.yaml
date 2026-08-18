@@ -1,0 +1,5 @@
+env_id: "math_reasoning"
+version: "0.1.0"
+max_episode_steps: 10
+difficulty_min: 0.1
+difficulty_max: 1.0
