@@ -26,6 +26,7 @@ class FixedDistributionCurriculum(BaseCurriculum):
         max_difficulty: float = 1.0,
         generator: MathTaskGenerator | None = None,
         seed: int | None = None,
+        **_kwargs: Any,
     ):
         super().__init__()
         self.min_difficulty = min_difficulty
@@ -58,6 +59,7 @@ class StaticCurriculum(BaseCurriculum):
         stages: list[tuple[int, float]] | None = None,
         generator: MathTaskGenerator | None = None,
         seed: int | None = None,
+        **_kwargs: Any,
     ):
         super().__init__()
         # List of (evaluation_count_threshold, difficulty)

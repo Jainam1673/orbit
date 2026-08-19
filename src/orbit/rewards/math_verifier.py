@@ -76,6 +76,10 @@ def normalize_numeric_string(val_str: str) -> float | int | Fraction | None:
     """Parses a string into a numerical value (int, float, or Fraction)."""
     clean = val_str.strip().replace("$", "").replace(",", "").strip()
 
+    # Scientific notation conversion (e.g. "1.5 * 10^3", "1.5 \times 10^3", "1.5 * 10**3")
+    clean = re.sub(r"\s*(\*|\\times)\s*10\^(\-?\d+)", r"e\2", clean)
+    clean = re.sub(r"\s*\*\s*10\*\*(\-?\d+)", r"e\1", clean)
+
     # Fraction representation e.g. "3/4" or "-1/2"
     if "/" in clean:
         parts = clean.split("/")
