@@ -64,36 +64,36 @@ Every training run enforces a **strict reproducibility contract**, recording com
 
 ```mermaid
 flowchart TD
-    subgraph Task Synthesis & Active Curriculum
-        TG[LLM Task Generator] --> VAL[Multi-Stage Pipeline Validator]
-        VAL --> DEDUP[SHA256 Content Deduplicator]
-        DEDUP --> SCRN[Reward Leakage Screen]
-        SCRN --> ADMIT[Admitted Task Spec]
-        ADMIT --> CM[Curriculum Manager]
-        DT[Difficulty Tracker & Learning Progress ΔL] --> FE[Frontier Estimator d* & Regret PAIRED Engine]
+    subgraph Task_Synthesis ["Task Synthesis & Active Curriculum"]
+        TG["LLM Task Generator"] --> VAL["Multi-Stage Pipeline Validator"]
+        VAL --> DEDUP["SHA256 Content Deduplicator"]
+        DEDUP --> SCRN["Reward Leakage Screen"]
+        SCRN --> ADMIT["Admitted Task Spec"]
+        ADMIT --> CM["Curriculum Manager"]
+        DT["Difficulty Tracker & Learning Progress"] --> FE["Frontier Estimator & Regret PAIRED Engine"]
         FE --> CM
     end
 
-    subgraph Agent Interaction & Stateful Reasoning
-        CM -->|Sample Task| ENV[Multi-Turn Environment]
-        ENV -->|Observation| AGT[Reasoning Agent]
-        AGT -->|Thought + Action / Tool Call| REPL[Stateful Symbolic REPL Tool]
+    subgraph Agent_Interaction ["Agent Interaction & Stateful Reasoning"]
+        CM -->|Sample Task| ENV["Multi-Turn Environment"]
+        ENV -->|Observation| AGT["Reasoning Agent"]
+        AGT -->|Thought + Action / Tool Call| REPL["Stateful Symbolic REPL Tool"]
         REPL -->|SymPy Computation Result| AGT
         AGT -->|Final Mathematical Proof| ENV
     end
 
-    subgraph Reward & Information-Theoretic Safety
-        ENV -->|Intermediate Step Sub-Goals| PROC[Process Sub-Goal Verifier]
-        ENV -->|Terminal Trajectory| VER[Exact Symbolic Verifier]
-        ENV -->|Response Text Stream| SEC[Kolmogorov Compression & Entropy Guard]
-        PROC -->|R_shaping| AGG[Decomposed Reward Breakdown]
+    subgraph Reward_Safety ["Reward & Information-Theoretic Safety"]
+        ENV -->|Intermediate Step Sub-Goals| PROC["Process Sub-Goal Verifier"]
+        ENV -->|Terminal Trajectory| VER["Exact Symbolic Verifier"]
+        ENV -->|Response Text Stream| SEC["Kolmogorov Compression & Entropy Guard"]
+        PROC -->|R_shaping| AGG["Decomposed Reward Breakdown"]
         VER -->|R_verifier| AGG
         SEC -->|P_safety| AGG
-        AGG -->|RewardBreakdown| LOG[Trajectory Audit Log JSONL]
+        AGG -->|RewardBreakdown| LOG["Trajectory Audit Log JSONL"]
     end
 
-    subgraph Policy Gradient Optimization
-        LOG --> GRPO[GRPO / PPO Trainer Engine]
+    subgraph Policy_Optimization ["Policy Gradient Optimization"]
+        LOG --> GRPO["GRPO / PPO Trainer Engine"]
         GRPO -->|Normalized Group Advantage & KL Update| AGT
     end
 ```
@@ -425,7 +425,7 @@ orbit/
 
 ```bibtex
 @software{orbit2026,
-  author = {Jainam Shah},
+  author = {Jainam Jadav},
   title = {ORBIT: Online Reinforcement with Behavior-driven Interactive Tasks},
   year = {2026},
   url = {https://github.com/Jainam1673/orbit},
