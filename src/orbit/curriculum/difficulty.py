@@ -1,4 +1,4 @@
-"""Empirical difficulty tracking and learning frontier estimation for ORBIT."""
+"""Empirical difficulty tracking, learning progress estimation, and frontier dynamics."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ class DifficultyRecord:
 
 
 class DifficultyTracker:
-    """Tracks rolling window task outcomes and computes empirical success rates."""
+    """Tracks rolling window task outcomes and computes empirical success rates and learning progress."""
 
     def __init__(
         self,
@@ -78,6 +78,23 @@ class DifficultyTracker:
                 rates.append(sum(1 for r in b if r.success) / len(b))
         return rates
 
+    def get_learning_progress(self, records: deque[DifficultyRecord] | list[DifficultyRecord]) -> float:
+        """Computes information-theoretic learning progress as empirical derivative: ΔSuccess / Δt.
+
+        Measures difference in mean success between the second half and first half of the window.
+        """
+        n = len(records)
+        if n < 4:
+            return 0.0
+        mid = n // 2
+        first_half = [1.0 if r.success else 0.0 for r in list(records)[:mid]]
+        second_half = [1.0 if r.success else 0.0 for r in list(records)[mid:]]
+        return float(np.mean(second_half) - np.mean(first_half))
+
+    def get_bin_learning_progress(self) -> list[float]:
+        """Computes learning progress derivative for each difficulty bin."""
+        return [self.get_learning_progress(b) for b in self.bin_records]
+
 
 class LearningFrontierEstimator:
     """Estimates the agent's active learning frontier difficulty d*."""
@@ -89,21 +106,38 @@ class LearningFrontierEstimator:
         learning_rate: float = 0.05,
         min_difficulty: float = 0.1,
         max_difficulty: float = 1.0,
+        mode: str = "target_success",
     ):
         self.tracker = tracker
         self.target_success_rate = target_success_rate
         self.learning_rate = learning_rate
         self.min_difficulty = min_difficulty
         self.max_difficulty = max_difficulty
+        self.mode = mode
         self.current_frontier: float = min_difficulty
 
     def update_frontier(self, recent_success: bool) -> float:
-        """Dynamically adjusts frontier difficulty based on recent success/failure.
+        """Dynamically adjusts frontier difficulty based on learning progress or target success rate."""
+        if self.mode == "learning_progress":
+            progress_per_bin = self.tracker.get_bin_learning_progress()
+            max_progress = max(progress_per_bin) if progress_per_bin else 0.0
 
-        If the agent succeeds, difficulty increases towards target challenge;
-        If the agent fails, difficulty eases down.
-        """
-        # Directional update: success -> +lr * (1 - target), failure -> -lr * target
+            # If a bin is showing positive learning progress, steer frontier to that bin center
+            if max_progress > 0.0:
+                best_bin_idx = int(np.argmax(progress_per_bin))
+                bin_center = float(
+                    (self.tracker.bin_edges[best_bin_idx] + self.tracker.bin_edges[best_bin_idx + 1]) / 2.0
+                )
+                self.current_frontier = float(
+                    np.clip(
+                        (1.0 - self.learning_rate) * self.current_frontier + self.learning_rate * bin_center,
+                        self.min_difficulty,
+                        self.max_difficulty,
+                    )
+                )
+                return self.current_frontier
+
+        # Fallback / Default: Target success rate pacing
         if recent_success:
             delta = self.learning_rate * (1.0 - self.target_success_rate)
         else:

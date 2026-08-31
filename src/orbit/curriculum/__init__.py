@@ -10,6 +10,7 @@ from orbit.curriculum.self_generated import SelfGeneratedCurriculum
 from orbit.curriculum.strategies import (
     AdaptiveFrontierCurriculum,
     FixedDistributionCurriculum,
+    RegretCurriculum,
     StaticCurriculum,
 )
 from orbit.curriculum.task_generator import LLMTaskGenerator
@@ -25,6 +26,7 @@ __all__ = [
     "FixedDistributionCurriculum",
     "LLMTaskGenerator",
     "LearningFrontierEstimator",
+    "RegretCurriculum",
     "SelfGeneratedCurriculum",
     "StaticCurriculum",
     "TaskPipelineValidator",

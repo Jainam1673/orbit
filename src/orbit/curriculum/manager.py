@@ -10,6 +10,7 @@ from orbit.curriculum.base import BaseCurriculum
 from orbit.curriculum.strategies import (
     AdaptiveFrontierCurriculum,
     FixedDistributionCurriculum,
+    RegretCurriculum,
     StaticCurriculum,
 )
 from orbit.data.trajectory import Trajectory
@@ -60,13 +61,17 @@ class CurriculumManager:
             self.curriculum = AdaptiveFrontierCurriculum(
                 generator=self.generator, seed=seed, **kwargs
             )
+        elif self.strategy_name == "regret":
+            self.curriculum = RegretCurriculum(
+                generator=self.generator, seed=seed, **kwargs
+            )
         elif self.strategy_name in ("self_generated", "generated"):
             from orbit.curriculum.self_generated import SelfGeneratedCurriculum
 
             self.curriculum = SelfGeneratedCurriculum(seed=seed, **kwargs)
         else:
             raise ValueError(
-                f"Unknown curriculum strategy '{strategy}'. Supported: ['fixed', 'static', 'adaptive', 'self_generated']"
+                f"Unknown curriculum strategy '{strategy}'. Supported: ['fixed', 'static', 'adaptive', 'regret', 'self_generated']"
             )
 
     def sample_task(self) -> TaskSpec:

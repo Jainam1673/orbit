@@ -177,3 +177,71 @@ class AdaptiveFrontierCurriculum(BaseCurriculum):
         metrics = super().get_metrics()
         metrics["bin_success_rates"] = self.tracker.get_bin_success_rates()
         return metrics
+
+
+class RegretCurriculum(BaseCurriculum):
+    """Asymmetric Setter-Solver Curriculum prioritizing tasks with maximal regret (solvable vs student)."""
+
+    def __init__(
+        self,
+        candidate_pool_size: int = 5,
+        generator: MathTaskGenerator | None = None,
+        tracker: DifficultyTracker | None = None,
+        seed: int | None = None,
+        **_kwargs: Any,
+    ):
+        super().__init__()
+        self.candidate_pool_size = candidate_pool_size
+        self.generator = generator or MathTaskGenerator(seed=seed)
+        self.tracker = tracker or DifficultyTracker(window_size=30)
+        self.rng = random.Random(seed)
+
+    def sample_task(self) -> TaskSpec:
+        # Generate candidate pool across full difficulty spectrum
+        candidates: list[TaskSpec] = [
+            self.generator.generate_task(difficulty=self.rng.uniform(0.1, 1.0))
+            for _ in range(self.candidate_pool_size)
+        ]
+
+        # Compute empirical regret = 1.0 - P_student(success | difficulty)
+        bin_rates = self.tracker.get_bin_success_rates()
+        regrets: list[float] = []
+
+        for c in candidates:
+            bin_idx = min(
+                int(np.digitize(c.difficulty, self.tracker.bin_edges) - 1),
+                self.tracker.num_bins - 1,
+            )
+            bin_idx = max(0, bin_idx)
+            est_success = bin_rates[bin_idx] if bin_rates[bin_idx] is not None else 0.5
+            # Regret is high when oracle can solve (1.0) but student struggles
+            regret = max(0.01, 1.0 - float(est_success))
+            regrets.append(regret)
+
+        # Softmax sampling over regrets
+        exp_r = np.exp(np.array(regrets) / 0.5)
+        probs = exp_r / np.sum(exp_r)
+        chosen_idx = int(self.rng.choices(range(len(candidates)), weights=probs, k=1)[0])
+
+        chosen_task = candidates[chosen_idx]
+        self.state.total_tasks_generated += 1
+        return chosen_task
+
+    def update(self, trajectory: Trajectory) -> None:
+        self.state.total_tasks_evaluated += 1
+        diff = trajectory.metadata.get("difficulty", 0.5)
+        self.tracker.record_outcome(
+            difficulty=diff,
+            success=trajectory.success,
+            reward=trajectory.total_reward,
+            num_steps=trajectory.num_steps,
+        )
+        self.state.recent_success_rate = self.tracker.get_overall_success_rate()
+        self.state.history.append(
+            {
+                "task_id": trajectory.task_id,
+                "success": trajectory.success,
+                "difficulty": diff,
+            }
+        )
+

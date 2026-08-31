@@ -34,32 +34,32 @@ Every training run enforces a **strict reproducibility contract**, recording com
 
 ```mermaid
 flowchart TD
-    subgraph Task Pipeline
+    subgraph Task Pipeline & Curriculum
         TG[LLM Task Generator] --> VAL[Multi-Stage Validator]
         VAL --> DEDUP[SHA256 Deduplicator]
         DEDUP --> SCRN[Reward Leakage Screen]
         SCRN --> ADMIT[Admitted Task Spec]
-    end
-
-    subgraph Curriculum Engine
         ADMIT --> CM[Curriculum Manager]
-        DT[Difficulty Tracker] --> FE[Frontier Estimator d*]
+        DT[Difficulty Tracker & Learning Progress ΔL] --> FE[Frontier Estimator d* & Regret PAIRED]
         FE --> CM
     end
 
     subgraph Environment & Interaction
         CM -->|Sample Task| ENV[Multi-Turn Environment]
         ENV -->|Observation| AGT[Reasoning Agent]
-        AGT -->|Thought + Action / Tool Call| TOOL[Sandboxed AST Calculator]
-        TOOL -->|Tool Result| AGT
+        AGT -->|Thought + Action / Tool Call| REPL[Stateful Symbolic REPL Tool]
+        REPL -->|Tool Result| AGT
         AGT -->|Final Response| ENV
     end
 
     subgraph Reward & Safety Verification
+        ENV -->|Intermediate Steps| PROC[Process Sub-Goal Verifier]
         ENV -->|Trajectory| VER[Exact Symbolic Verifier]
-        ENV -->|Text Stream| SEC[Reward Anomaly Detector]
-        VER -->|R_ver| RWD[Reward Decomposer]
-        SEC -->|P_safety| RWD
+        ENV -->|Text Stream| SEC[Kolmogorov & Entropy Safety Guard]
+        PROC --> AGG[Decomposed Reward Breakdown]
+        VER --> AGG
+        SEC --> AGG
+        AGG --> RWD[Reward Decomposer]
         RWD -->|RewardBreakdown| LOG[Trajectory Log JSONL]
     end
 
