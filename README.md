@@ -63,39 +63,77 @@ Every training run enforces a **strict reproducibility contract**, recording com
 ## 🏛 System Architecture & Data Flow
 
 ```mermaid
-flowchart TD
-    subgraph Task_Synthesis ["Task Synthesis & Active Curriculum"]
-        TG["LLM Task Generator"] --> VAL["Multi-Stage Pipeline Validator"]
-        VAL --> DEDUP["SHA256 Content Deduplicator"]
-        DEDUP --> SCRN["Reward Leakage Screen"]
-        SCRN --> ADMIT["Admitted Task Spec"]
-        ADMIT --> CM["Curriculum Manager"]
-        DT["Difficulty Tracker & Learning Progress"] --> FE["Frontier Estimator & Regret PAIRED Engine"]
-        FE --> CM
+flowchart TB
+    %% =========================================================================
+    %% LAYER 1: CURRICULUM & ADAPTIVE TASK SYNTHESIS
+    %% =========================================================================
+    subgraph Layer_Curriculum ["🪐 Layer 1: Continuous Task Generation & Active Frontier Engine"]
+        direction TB
+        subgraph Synthesis_Pipeline ["Task Validation & Screening Pipeline"]
+            TG["⚡ LLM Task Proposer<br/>(Setter Policy)"] -->|Raw JSON Spec| VAL["🛡️ Multi-Stage Validator<br/>(JSON Schema & Boundary Checks)"]
+            VAL -->|Valid Spec| DEDUP["🔍 SHA256 Deduplicator<br/>(Prevents Mode Replay)"]
+            DEDUP -->|Unique Task| SCRN["🚫 Reward Leakage Filter<br/>(Ground-Truth Concealment)"]
+            SCRN -->|Admitted Task| POOL[("📦 Admitted Task Pool<br/>TaskSpec(prompt, d, family)")]
+        end
+
+        subgraph Active_Pacing ["Adaptive Frontier & Regret PAIRED Engine"]
+            DT["📈 Difficulty & Progress Tracker<br/>ΔL = d/dt E[R | d]"] --> FE["🎯 Frontier Estimator (d*)<br/>Zone of Proximal Development"]
+            FE --> CM["⚖️ Curriculum Manager<br/>(Adaptive | Regret | Static)"]
+            POOL --> CM
+        end
     end
 
-    subgraph Agent_Interaction ["Agent Interaction & Stateful Reasoning"]
-        CM -->|Sample Task| ENV["Multi-Turn Environment"]
-        ENV -->|Observation| AGT["Reasoning Agent"]
-        AGT -->|Thought + Action / Tool Call| REPL["Stateful Symbolic REPL Tool"]
-        REPL -->|SymPy Computation Result| AGT
-        AGT -->|Final Mathematical Proof| ENV
+    %% =========================================================================
+    %% LAYER 2: INTERACTIVE REASONING & STATEFUL TOOLS
+    %% =========================================================================
+    subgraph Layer_Interaction ["🤖 Layer 2: Multi-Turn Cognitive Agent & Symbolic Environment"]
+        direction TB
+        CM -->|"[1] Sample Task x"| ENV["🌐 Multi-Turn Gymnasium Environment<br/>MathEnvironment.step()"]
+        ENV -->|"[2] Problem Observation o_t"| AGT["🧠 Reasoning Agent Core<br/>(CoT Policy π_θ)"]
+        
+        AGT -->|"[3a] Working Memory"| MEM[("💾 Interaction Memory<br/>History & Scratchpad")]
+        MEM -->|Context Buffer| AGT
+        
+        AGT -->|"[3b] Tool Call (code)"| REPL["🐍 Stateful Symbolic REPL<br/>(Sandboxed AST + SymPy Workspace)"]
+        REPL -->|"[3c] Evaluation Output"| AGT
+        
+        AGT -->|"[4] Action / Terminal Answer"| ENV
     end
 
-    subgraph Reward_Safety ["Reward & Information-Theoretic Safety"]
-        ENV -->|Intermediate Step Sub-Goals| PROC["Process Sub-Goal Verifier"]
-        ENV -->|Terminal Trajectory| VER["Exact Symbolic Verifier"]
-        ENV -->|Response Text Stream| SEC["Kolmogorov Compression & Entropy Guard"]
-        PROC -->|R_shaping| AGG["Decomposed Reward Breakdown"]
-        VER -->|R_verifier| AGG
-        SEC -->|P_safety| AGG
-        AGG -->|RewardBreakdown| LOG["Trajectory Audit Log JSONL"]
+    %% =========================================================================
+    %% LAYER 3: MULTI-OBJECTIVE REWARD & SAFETY GUARDS
+    %% =========================================================================
+    subgraph Layer_Verification ["🛡️ Layer 3: Process-Supervised Verification & Information-Theoretic Safety"]
+        direction TB
+        ENV -->|"[5a] Intermediate Steps"| PROC["🪜 Process Sub-Goal Verifier<br/>(Dense Step Shaping R_shaping)"]
+        ENV -->|"[5b] Final Trajectory τ"| VER["📐 Exact Symbolic Verifier<br/>(LaTeX Math Equivalence R_ver)"]
+        ENV -->|"[5c] Generated Tokens"| SEC["🔒 Kolmogorov & Entropy Guard<br/>(CR(y) ≥ 0.25 & Injection Screen P_safety)"]
+        
+        PROC --> AGG["➕ Additive Reward Decomposer<br/>R_total = R_env + R_ver + R_shaping + R_critic - P_safety"]
+        VER --> AGG
+        SEC --> AGG
+        
+        AGG --> TRAJ[("📜 Audited Trajectory Record<br/>Trajectory(τ, R_breakdown, Provenance)")]
     end
 
-    subgraph Policy_Optimization ["Policy Gradient Optimization"]
-        LOG --> GRPO["GRPO / PPO Trainer Engine"]
-        GRPO -->|Normalized Group Advantage & KL Update| AGT
+    %% =========================================================================
+    %% LAYER 4: POLICY OPTIMIZATION & DISTRIBUTED SCALE
+    %% =========================================================================
+    subgraph Layer_Optimization ["⚡ Layer 4: Distributed Policy Optimization & Telemetry"]
+        direction TB
+        TRAJ --> GRPO["🚀 GRPO Group Advantage Normalizer<br/>A_i = (r_i - μ) / (σ + ε)"]
+        TRAJ --> PPO["🎯 Actor-Critic PPO / GAE(γ, λ)<br/>Advantage Estimator"]
+        
+        GRPO --> LOSS["📉 Clipped Surrogate Loss + k3-KL Divergence<br/>min(ρ A, clip(ρ) A) - β D_KL(π_θ || π_ref)"]
+        PPO --> LOSS
+        
+        LOSS --> DIST["📡 Distributed Worker Pool<br/>(NCCL all_reduce, Rank-Offset Seeds)"]
+        DIST -->|"[6] Gradient Update ∇_θ L"| AGT
+        DIST -.->|Telemetry Stream| DASH["🖥️ Research Observability Console<br/>(FastAPI + /dashboard)"]
     end
+
+    %% Feedback loops
+    TRAJ -.->|Feedback History| DT
 ```
 
 ---
